@@ -1,4 +1,4 @@
-# Middleware that compresses HTML response bodies
+# Middleware that compresses CSS/JS response bodies
 
 [![Build Status](https://travis-ci.org/WyriHaximus/reactphp-http-middleware-compress-assets.svg?branch=master)](https://travis-ci.org/WyriHaximus/reactphp-http-middleware-compress-assets)
 [![Latest Stable Version](https://poser.pugx.org/WyriHaximus/react-http-middleware-compress-assets/v/stable.png)](https://packagist.org/packages/WyriHaximus/react-http-middleware-compress-assets)
