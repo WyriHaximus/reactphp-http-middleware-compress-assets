@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace WyriHaximus\React\Http\Middleware;
 
@@ -7,62 +9,61 @@ use Psr\Http\Message\ServerRequestInterface;
 use React\Http\Io\HttpBodyStream;
 use React\Promise\PromiseInterface;
 use WyriHaximus\HtmlCompress\Factory;
-use WyriHaximus\HtmlCompress\Parser;
+use WyriHaximus\HtmlCompress\HtmlCompressorInterface;
+
+use function explode;
 use function React\Promise\resolve;
 use function RingCentral\Psr7\stream_for;
+use function Safe\substr;
+use function strlen;
 
 final class CssCompressMiddleware
 {
-    const MIME_TYPE = 'text/css';
+    public const MIME_TYPE = 'text/css';
+
+    private HtmlCompressorInterface $compressor;
 
     /**
-     * @var Parser
+     * @phpstan-ignore-next-line
      */
-    private $compressor;
-
-    /**
-     * @param Parser $compressor
-     */
-    public function __construct(Parser $compressor = null)
+    public function __construct(?HtmlCompressorInterface $compressor = null)
     {
         if ($compressor === null) {
-            $compressor = Factory::constructSmallest(false);
+            $compressor = Factory::constructSmallest();
         }
 
         $this->compressor = $compressor;
     }
 
-    public function __invoke(ServerRequestInterface $request, callable $next)
+    public function __invoke(ServerRequestInterface $request, callable $next): PromiseInterface
     {
         $response = $next($request);
 
-        if (!($response instanceof PromiseInterface)) {
+        if (! ($response instanceof PromiseInterface)) {
             return resolve($this->handleResponse($response));
         }
 
-        return $response->then(function (ResponseInterface $response) {
-            return $this->handleResponse($response);
-        });
+        return $response->then(fn (ResponseInterface $response): ResponseInterface => $this->handleResponse($response));
     }
 
-    private function handleResponse(ResponseInterface $response)
+    private function handleResponse(ResponseInterface $response): ResponseInterface
     {
         if ($response->getBody() instanceof HttpBodyStream) {
             return $response;
         }
 
-        if (!$response->hasHeader('content-type')) {
+        if (! $response->hasHeader('content-type')) {
             return $response;
         }
 
-        list($contentType) = explode(';', $response->getHeaderLine('content-type'));
+        [$contentType] = explode(';', $response->getHeaderLine('content-type'));
         if ($contentType !== self::MIME_TYPE) {
             return $response;
         }
 
-        $body = (string)$response->getBody();
+        $body           = (string) $response->getBody();
         $compressedBody = substr($this->compressor->compress('<style>' . $body . '</style>'), 7, -8);
 
-        return $response->withBody(stream_for($compressedBody))->withHeader('Content-Length', strlen($compressedBody));
+        return $response->withBody(stream_for($compressedBody))->withHeader('Content-Length', (string) strlen($compressedBody));
     }
 }
